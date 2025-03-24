@@ -1,6 +1,5 @@
 from scholarly import scholarly
 import numpy as np
-import time
 import os
 import re
 
@@ -19,9 +18,12 @@ def fetch_publications(profile_url, verbose = True):
         author_name = author['name']
 
         if verbose:
+            print("\033[35mFetching publications for:\033[0m")
+            print("\n")
             print(f"\033[35mUser ID = {user_id}\033[0m")
             print(f"\033[35mUser name = {author_name}\033[0m")
-
+            print("\n")
+    
         # Search for the profile
         search_query = scholarly.search_author_id(user_id)
         profile = scholarly.fill(search_query)
@@ -90,6 +92,10 @@ def fetch_publications(profile_url, verbose = True):
 
             journal, _ = manage_exception(journal, title, "")
 
+            if "Unknown Journal" in journal:
+                if "hal.science" in url:
+                    journal = "HAL"
+
             # Debugging missing years
             if year == 'N/A':
                 print(f"Missing year for publication: {pub_details.get('bib', {}).get('title', 'Unknown Title')}")
@@ -107,11 +113,21 @@ def fetch_publications(profile_url, verbose = True):
                 'is_preprint': is_preprint,
                 'date': date_value,
             }
+
             if verbose:
-                print(f"\033[36m{year}\033[0m {title} \033[36m{journal}\033[0m")
+                truncated_title = title if len(title) <= 30 else title[:27] + "..."
+                print(f"\033[36m{year}\033[0m {truncated_title} \033[36m{journal}\033[0m")
 
             publications.append(publication_data)
         
+        if verbose:
+            print("\n")
+            print(f"\033[35m{len(publications)} publications found\033[0m")
+            print("\n")
+
+        # Sort the publications
+        publications.sort(key=lambda x: x.get('year', 0), reverse=False)
+
         return publications
 
     except Exception as e:
@@ -133,6 +149,8 @@ def manage_exception(journal, title, family_name):
         journal = "Unknown Journal"
     if "Guérin" in family_name:
         family_name = "Guerin"
+    if ("Unknown Journal" in journal) & ("aqueous/organic" in title):
+        journal = "Patent"
     return journal, family_name
 
 def define_folder_name(publication):
@@ -162,16 +180,18 @@ def define_folder_name(publication):
     else:
         folder_name = str(year)+"_"+family_name+"_"+journal
 
-    return folder_name, title
+    folder_name = folder_name + "_" + "_".join(title.split(" ")[:3])
+
+    return folder_name
 
 def add_missing_publications(publications, path_to_publications, author_name, verbose = True):
     """Loop over publications, and check if they are already present in path_to_publications."""
     for publication in publications:
-        folder_name, title = define_folder_name(publication)
+        folder_name = define_folder_name(publication)
         if folder_name is not None:
-            save_to_file(publication, path_to_publications, folder_name, author_name, verbose)
+            save_to_file(publication, path_to_publications, folder_name, verbose)
 
-def save_to_file(pub, path, folder, author_name, verbose):
+def save_to_file(pub, path, folder, verbose):
     """Save publication to an individual Markdown-like file."""
     if not os.path.exists(path):
         os.makedirs(path)
@@ -198,7 +218,7 @@ def save_to_file(pub, path, folder, author_name, verbose):
     if isinstance(authors, str):
         authors = [author.strip() for author in authors.split(" and ")]
 
-    # Apply formatting for "Simon Gravelle"
+    # Apply **formatting** for "Simon Gravelle"
     formatted_authors = [
         f"**{author}**" if author == "Simon Gravelle" else author for author in authors
     ]
@@ -237,7 +257,7 @@ links:
         with open(path + folder + "/index.md", mode='w', encoding='utf-8') as file:
             file.write(content)
         if verbose:
-            print(f"\033[36m{folder}\033[0m {title}\033[36m will be created\033[0m")
+            print(f"\033[96m{folder} created\033[0m")
     else:
         if verbose:
-            print(f"\033[35m{folder}\033[0m {title}\033[36m already exists\033[0m") 
+            print(f"\033[34m{folder} already exists\033[0m")
