@@ -3,6 +3,13 @@ import numpy as np
 import os
 import re
 
+def sanitize_folder_name(name):
+    # Replace invalid characters with underscores
+    sanitized = re.sub(r'[<>:"/\\|?*,.:]', '_', name)
+    # Replace multiple underscores with a single one
+    sanitized = re.sub(r'_+', '_', sanitized)
+    return sanitized.strip('_')  # Remove leading/trailing underscores
+
 def is_valid_doi(doi):
     # Regex to match standard DOI pattern (e.g., 10.xxxx/xxxxxxx)
     doi_pattern = r"^10\.\d{4,9}/[-._;()/:A-Z0-9]+$"
@@ -99,6 +106,7 @@ def fetch_publications(profile_url, verbose = True):
             # Debugging missing years
             if year == 'N/A':
                 print(f"Missing year for publication: {pub_details.get('bib', {}).get('title', 'Unknown Title')}")
+                year = 3000  # Assign a default year for sorting
 
             publication_data = {
                 'title': title,
@@ -125,10 +133,12 @@ def fetch_publications(profile_url, verbose = True):
             print(f"\033[35m{len(publications)} publications found\033[0m")
             print("\n")
 
+        # # Sort the publications
+        # publications.sort(key=lambda x: x.get('year', 0), reverse=False)
         # Sort the publications
-        publications.sort(key=lambda x: x.get('year', 0), reverse=False)
+        sorted_publications = sorted(publications, key=lambda x: int(x['year']))
 
-        return publications
+        return sorted_publications
 
     except Exception as e:
         print(f"Error fetching publications: {e}")
@@ -189,7 +199,8 @@ def add_missing_publications(publications, path_to_publications, author_name, ve
     for publication in publications:
         folder_name = define_folder_name(publication)
         if folder_name is not None:
-            save_to_file(publication, path_to_publications, folder_name, verbose)
+            sanitized_folder_name = sanitize_folder_name(folder_name)
+            save_to_file(publication, path_to_publications, sanitized_folder_name, verbose)
 
 def save_to_file(pub, path, folder, verbose):
     """Save publication to an individual Markdown-like file."""
@@ -252,6 +263,12 @@ links:
 ---
 """
     
+    # # After (sanitized):
+    # sanitized_title = sanitize_folder_name(publication['title'])
+    # sanitized_author = sanitize_folder_name(publication['author'])
+    # folder = f"{publication['year']}_{publication['month']}_{publication['day']}_{sanitized_author}_{sanitized_title}".replace(' ', '_')
+
+
     if not os.path.exists(path + folder):
         os.makedirs(path + folder)
         with open(path + folder + "/index.md", mode='w', encoding='utf-8') as file:

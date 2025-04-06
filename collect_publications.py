@@ -4,9 +4,9 @@ import sys
 
 def main(path="publications/"):
     # Replace accordingly
-    simongravelle_url = "https://scholar.google.fr/citations?user=9fD2JlYAAAAJ&hl"
+    simongravelle_url = "https://scholar.google.com/citations?user=iv1vNTYAAAAJ&hl=en&oi=ao"
     # Author name (for proper highlighting) Replace accordingly
-    author_name = "Simon Gravelle"
+    author_name = "Berkcan Kapusuzoglu"
 
     # Read publication from Google Scholar
     publications = fetch_publications(simongravelle_url, verbose = True)
